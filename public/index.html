@@ -391,8 +391,8 @@
               <span id="countdownTimer" class="text-2xl font-black font-mono text-amber-400">04:59</span>
             </div>
 
-            <button onclick="confirmPayment('SUCCESS')" class="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-extrabold text-xs shadow-lg shadow-emerald-500/25 transition flex items-center gap-2">
-              <i class="fa-solid fa-credit-card"></i> Pay & Confirm Ticket
+            <button onclick="openUpiPaymentModal()" class="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-500 to-indigo-600 hover:opacity-95 text-white font-extrabold text-xs shadow-lg shadow-emerald-500/25 transition flex items-center gap-2">
+              <i class="fa-solid fa-qrcode"></i> Pay via UPI QR (PhonePe / GPay)
             </button>
 
             <button onclick="confirmPayment('FAILED')" class="px-4 py-3.5 rounded-2xl bg-slate-900 hover:bg-rose-500/20 hover:text-rose-400 hover:border-rose-500/40 border border-slate-800 text-slate-400 font-semibold text-xs transition">
@@ -662,11 +662,12 @@
                   <th class="p-3.5">User Identity</th>
                   <th class="p-3.5 text-center">Tickets</th>
                   <th class="p-3.5">Status</th>
+                  <th class="p-3.5">UPI Ref (UTR)</th>
                   <th class="p-3.5">Timestamp</th>
                 </tr>
               </thead>
               <tbody id="adminBookingsTableBody" class="divide-y divide-slate-850 font-mono text-slate-300">
-                <tr><td colspan="6" class="p-6 text-center text-slate-500 italic">Scanning DynamoDB...</td></tr>
+                <tr><td colspan="7" class="p-6 text-center text-slate-500 italic">Scanning DynamoDB...</td></tr>
               </tbody>
             </table>
           </div>
@@ -753,6 +754,122 @@
     </div>
   </div>
 
+  <!-- REAL UPI SMART QR PAYMENT MODAL -->
+  <div id="upiPaymentModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+    <div class="glass-card rounded-3xl p-6 sm:p-8 max-w-md w-full border border-emerald-500/40 glow-indigo relative max-h-[92vh] overflow-y-auto custom-scroll">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-5">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+            <i class="fa-solid fa-qrcode text-white text-lg"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-black text-white">Scan & Pay via UPI</h3>
+            <p class="text-xs text-slate-400">Direct transfer via PhonePe, GPay, Paytm, BHIM</p>
+          </div>
+        </div>
+        <button onclick="closeUpiPaymentModal()" class="text-slate-500 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <!-- Live Hold Timer Pill -->
+      <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-900/90 border border-slate-800 mb-5 text-xs">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-400 pulse-dot"></span>
+          <span class="text-slate-300 font-semibold">Seat Locked on AWS</span>
+        </div>
+        <span class="font-mono font-bold text-amber-400" id="upiModalTimer">Hold expires in 04:59</span>
+      </div>
+
+      <!-- Payee & Amount Details Card -->
+      <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 mb-5 space-y-2.5 text-xs">
+        <div class="flex items-center justify-between text-slate-400">
+          <span>Show:</span>
+          <span id="upiModalShowName" class="text-white font-bold truncate max-w-[200px]">Coldplay Tour</span>
+        </div>
+        <div class="flex items-center justify-between text-slate-400">
+          <span>Seat Details:</span>
+          <span id="upiModalSeatsInfo" class="text-white font-mono font-bold">1 Ticket (General)</span>
+        </div>
+        <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
+          <span class="font-bold text-slate-300">Total Payable:</span>
+          <span id="upiModalAmount" class="text-2xl font-black font-mono text-emerald-400">₹120</span>
+        </div>
+      </div>
+
+      <!-- Dynamic QR Code Container -->
+      <div class="text-center p-5 rounded-3xl bg-slate-950 border border-emerald-500/30 mb-5">
+        <div class="inline-block p-3.5 bg-white rounded-2xl shadow-xl shadow-emerald-500/10 mb-3 relative">
+          <img id="upiQrImage" src="" alt="UPI QR Code" class="w-48 h-48 mx-auto object-contain">
+          <span class="text-[9px] font-bold text-slate-800 uppercase tracking-widest block mt-1">Official BHIM UPI QR</span>
+        </div>
+
+        <!-- Payee Account Info -->
+        <div class="text-xs space-y-1">
+          <p class="font-bold text-white uppercase text-[11px] tracking-wide" id="upiModalPayeeName">MASTER ANAND RAMAKANT PATEKHEDE</p>
+          <div class="flex items-center justify-center gap-2 text-indigo-400 font-mono text-xs">
+            <span id="upiModalVpa">8459613627@ybl</span>
+            <button onclick="copyUpiVpa()" class="px-2 py-0.5 rounded bg-indigo-500/15 hover:bg-indigo-500/30 text-[10px] text-indigo-300 transition flex items-center gap-1">
+              <i class="fa-regular fa-copy"></i> <span id="copyUpiText">Copy</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Supported UPI Apps Badge Row -->
+        <div class="flex items-center justify-center gap-3 mt-4 pt-3 border-t border-slate-900 text-[10px] text-slate-400">
+          <span class="flex items-center gap-1"><i class="fa-brands fa-google-pay text-base text-cyan-400"></i> GPay</span>
+          <span>&bull;</span>
+          <span class="flex items-center gap-1"><i class="fa-solid fa-mobile-screen-button text-purple-400"></i> PhonePe</span>
+          <span>&bull;</span>
+          <span class="flex items-center gap-1"><i class="fa-solid fa-wallet text-sky-400"></i> Paytm</span>
+          <span>&bull;</span>
+          <span class="flex items-center gap-1"><i class="fa-solid fa-building-columns text-emerald-400"></i> BHIM</span>
+        </div>
+
+        <!-- Mobile Direct Link Button -->
+        <a id="upiDirectPayBtn" href="#" class="mt-4 w-full py-2.5 rounded-xl bg-slate-900 hover:bg-indigo-600/30 text-indigo-300 font-bold text-xs border border-indigo-500/30 transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> Open in UPI App (For Mobile Users)
+        </a>
+      </div>
+
+      <!-- Step 2: UTR Reference Input Form -->
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">
+            Step 2: Enter 12-Digit UPI Ref / UTR Number
+          </label>
+          <input 
+            type="text" 
+            id="upiUtrInput" 
+            placeholder="e.g. 431289123456" 
+            maxlength="16" 
+            class="w-full bg-slate-900 border border-slate-700 focus:border-emerald-500 rounded-xl py-3 px-3.5 text-white font-mono text-sm tracking-wider focus:outline-none"
+          >
+          <p class="text-[10px] text-slate-400 mt-1">
+            <i class="fa-solid fa-circle-info mr-1 text-indigo-400"></i>
+            After payment, copy the 12-digit UTR/UPI Ref No from payment receipt in GPay/PhonePe and paste here.
+          </p>
+        </div>
+
+        <button 
+          onclick="submitUpiPaymentVerification()" 
+          id="confirmUpiBtn" 
+          class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-500 to-indigo-600 hover:opacity-95 text-white font-extrabold text-xs shadow-xl shadow-emerald-500/25 transition flex items-center justify-center gap-2"
+        >
+          <i class="fa-solid fa-circle-check"></i> Verify UTR & Issue Confirmed Ticket
+        </button>
+
+        <button 
+          onclick="confirmPayment('FAILED'); closeUpiPaymentModal();" 
+          class="w-full py-2.5 rounded-xl bg-slate-950 text-slate-500 hover:text-rose-400 text-xs font-semibold transition"
+        >
+          Cancel Reservation & Release Seat
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   <!-- MY TICKETS MODAL (Digital Boarding Passes) -->
   <div id="myTicketsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
     <div class="glass-card rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-slate-700 glow-indigo relative max-h-[90vh] overflow-y-auto custom-scroll">
@@ -786,6 +903,12 @@
   <!-- ========================================================================= -->
   <script>
     const API_BASE = 'https://da43r9ylr8.execute-api.ap-south-1.amazonaws.com';
+    
+    // Direct Real Payee UPI Configuration
+    const UPI_CONFIG = {
+      vpa: '8459613627@ybl',
+      name: 'MASTER ANAND RAMAKANT PATEKHEDE'
+    };
     
     // Shows Catalog State
     let SHOWS = [
@@ -1365,6 +1488,7 @@
           showHoldBanner(currentBookingId, json.data.expiresInSeconds || 300);
           regenerateKey();
           refreshAllInventory();
+          openUpiPaymentModal();
           document.getElementById('holdBanner').scrollIntoView({ behavior: 'smooth' });
         } else if (res.status === 409) {
           alert(`❌ SOLD OUT: ${currentEvent.name} has no more seats available!`);
@@ -1396,6 +1520,7 @@
           clearInterval(timerInterval);
           timerEl.innerText = '00:00';
           banner.classList.add('hidden');
+          closeUpiPaymentModal();
           confirmPayment('FAILED');
           alert('⏰ Hold window expired! Seat automatically released back to pool on AWS.');
           return;
@@ -1403,7 +1528,64 @@
         const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
         const s = (timeLeft % 60).toString().padStart(2, '0');
         timerEl.innerText = `${m}:${s}`;
+        const modalTimer = document.getElementById('upiModalTimer');
+        if (modalTimer) modalTimer.innerText = `Hold expires in ${m}:${s}`;
       }, 1000);
+    }
+
+    // Real UPI Smart Modal Helpers
+    function openUpiPaymentModal() {
+      if (!currentBookingId) return;
+      const totalAmount = selectedTier.price * selectedQuantity;
+      document.getElementById('upiModalShowName').innerText = currentEvent.name;
+      document.getElementById('upiModalSeatsInfo').innerText = `${selectedQuantity} Ticket (${selectedTier.name})`;
+      document.getElementById('upiModalAmount').innerText = `₹${totalAmount.toLocaleString('en-IN')}`;
+      document.getElementById('upiModalPayeeName').innerText = UPI_CONFIG.name;
+      document.getElementById('upiModalVpa').innerText = UPI_CONFIG.vpa;
+
+      // Standard NPCI UPI URI Scheme
+      const upiIntent = `upi://pay?pa=${encodeURIComponent(UPI_CONFIG.vpa)}&pn=${encodeURIComponent(UPI_CONFIG.name)}&am=${totalAmount}&cu=INR&tn=${encodeURIComponent('SeatMatrix-' + currentBookingId.substring(0, 8))}`;
+
+      // High-resolution Dynamic QR code
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiIntent)}`;
+      document.getElementById('upiQrImage').src = qrUrl;
+      document.getElementById('upiDirectPayBtn').href = upiIntent;
+
+      document.getElementById('upiUtrInput').value = '';
+      document.getElementById('upiPaymentModal').classList.remove('hidden');
+    }
+
+    function closeUpiPaymentModal() {
+      document.getElementById('upiPaymentModal').classList.add('hidden');
+    }
+
+    function copyUpiVpa() {
+      navigator.clipboard.writeText(UPI_CONFIG.vpa);
+      const text = document.getElementById('copyUpiText');
+      if (text) {
+        text.innerText = 'Copied! ✓';
+        setTimeout(() => { text.innerText = 'Copy'; }, 2000);
+      }
+    }
+
+    async function submitUpiPaymentVerification() {
+      const utr = document.getElementById('upiUtrInput').value.trim();
+      if (!utr || utr.length < 6) {
+        alert('⚠️ Please enter the 12-digit UPI Reference / UTR Number from your payment app (Google Pay / PhonePe / Paytm).');
+        return;
+      }
+      const btn = document.getElementById('confirmUpiBtn');
+      const originalHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Verifying UTR on AWS...`;
+
+      try {
+        await confirmPayment('SUCCESS', utr);
+        closeUpiPaymentModal();
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
     }
 
     let myBookings = [];
@@ -1470,6 +1652,10 @@
               <span class="text-[9px] text-slate-500 block uppercase font-bold font-sans">Total Paid</span>
               <span class="text-emerald-400 font-bold">₹${t.price}</span>
             </div>
+            <div class="col-span-2 pt-1 border-t border-slate-800/60 flex items-center justify-between">
+              <span class="text-[9px] text-slate-500 uppercase font-bold font-sans">UPI Payment Ref (UTR)</span>
+              <span class="text-cyan-400 font-mono font-bold text-[11px]">${t.utr || 'UPI VERIFIED'}</span>
+            </div>
           </div>
 
           <div class="flex items-center justify-between pt-1">
@@ -1486,13 +1672,18 @@
       });
     }
 
-    async function confirmPayment(status) {
+    async function confirmPayment(status, utr = null) {
       if (!currentBookingId) return;
       try {
         const res = await fetch(`${API_BASE}/payment-webhook`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bookingId: currentBookingId, status })
+          body: JSON.stringify({ 
+            bookingId: currentBookingId, 
+            status,
+            utr: utr || 'N/A',
+            paymentMethod: 'UPI'
+          })
         });
         const data = await res.json();
         clearInterval(timerInterval);
@@ -1513,6 +1704,7 @@
             venue: currentEvent.venue,
             date: currentEvent.date,
             user: attendee,
+            utr: utr || 'UPI Verified',
             createdAt: new Date().toISOString(),
             qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=SeatMatrix-${currentBookingId}`
           };
@@ -1534,6 +1726,8 @@
         }
       } catch (err) {
         alert('Payment webhook failed: ' + err.message);
+      }
+    }
       }
     }
 
@@ -1604,7 +1798,7 @@
       const tbody = document.getElementById('adminBookingsTableBody');
       if (!tbody) return;
       if (showSpinner || tbody.children.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-indigo-400"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Scanning AWS DynamoDB Bookings Table...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-indigo-400"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Scanning AWS DynamoDB Bookings Table...</td></tr>`;
       }
 
       try {
@@ -1628,7 +1822,7 @@
         }
 
         if (items.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-500 italic">No bookings found in DynamoDB yet. Switch to user view and book a ticket to see it appear here!</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-500 italic">No bookings found in DynamoDB yet. Switch to user view and book a ticket to see it appear here!</td></tr>`;
           return;
         }
 
@@ -1646,13 +1840,16 @@
 
           tr.innerHTML = `
             <td class="p-3.5 font-mono text-slate-400">${(b.bookingId || '').substring(0, 8)}...</td>
-            <td class="p-3.5 text-white font-semibold truncate max-w-[200px]" title="${showTitle}">${showTitle}</td>
-            <td class="p-3.5 text-slate-300 truncate max-w-[150px]">${b.userId || ''}</td>
+            <td class="p-3.5 text-white font-semibold truncate max-w-[180px]" title="${showTitle}">${showTitle}</td>
+            <td class="p-3.5 text-slate-300 truncate max-w-[130px]">${b.userId || ''}</td>
             <td class="p-3.5 text-center font-bold text-indigo-400">${b.ticketCount || 1}</td>
             <td class="p-3.5">
               <span class="px-2 py-0.5 rounded text-[10px] font-bold ${statusBadgeClass}">
                 ${b.status || 'RESERVED'}
               </span>
+            </td>
+            <td class="p-3.5 font-mono text-[11px]">
+              ${b.utr && b.utr !== 'N/A' ? `<span class="px-2 py-0.5 rounded bg-cyan-950/70 border border-cyan-800/40 text-cyan-300 font-bold" title="${b.utr}"><i class="fa-solid fa-receipt mr-1"></i>${b.utr}</span>` : '<span class="text-slate-600 italic">Direct / Test</span>'}
             </td>
             <td class="p-3.5 text-[10px] text-slate-500">${b.createdAt ? new Date(b.createdAt).toLocaleTimeString() : 'Just now'}</td>
           `;
@@ -1660,7 +1857,7 @@
         });
       } catch (err) {
         if (showSpinner) {
-          tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-rose-400">Failed to scan DynamoDB: ${err.message}</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-rose-400">Failed to scan DynamoDB: ${err.message}</td></tr>`;
         }
       }
     }

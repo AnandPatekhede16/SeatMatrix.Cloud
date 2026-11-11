@@ -158,17 +158,31 @@ class DynamoService {
    */
   async updateBookingStatus(
     bookingId: string,
-    status: BookingRecord['status']
+    status: BookingRecord['status'],
+    extra?: { utr?: string; paymentMethod?: string }
   ): Promise<BookingRecord | null> {
     if (this.isAWSAvailable && this.docClient && process.env.USE_LOCAL_MOCK !== 'true') {
       try {
+        let updateExpr = 'SET #st = :status';
+        const exprAttrNames: Record<string, string> = { '#st': 'status' };
+        const exprAttrValues: Record<string, any> = { ':status': status };
+
+        if (extra?.utr) {
+          updateExpr += ', utr = :utr';
+          exprAttrValues[':utr'] = extra.utr;
+        }
+        if (extra?.paymentMethod) {
+          updateExpr += ', paymentMethod = :pm';
+          exprAttrValues[':pm'] = extra.paymentMethod;
+        }
+
         const res = await this.docClient.send(
           new UpdateCommand({
             TableName: CONFIG.DYNAMODB_BOOKINGS_TABLE,
             Key: { bookingId },
-            UpdateExpression: 'SET #st = :status',
-            ExpressionAttributeNames: { '#st': 'status' },
-            ExpressionAttributeValues: { ':status': status },
+            UpdateExpression: updateExpr,
+            ExpressionAttributeNames: exprAttrNames,
+            ExpressionAttributeValues: exprAttrValues,
             ReturnValues: 'ALL_NEW',
           })
         );
@@ -180,6 +194,8 @@ class DynamoService {
     const booking = this.mockBookings.get(bookingId);
     if (booking) {
       booking.status = status;
+      if (extra?.utr) booking.utr = extra.utr;
+      if (extra?.paymentMethod) booking.paymentMethod = extra.paymentMethod;
       this.mockBookings.set(bookingId, booking);
       return booking;
     }

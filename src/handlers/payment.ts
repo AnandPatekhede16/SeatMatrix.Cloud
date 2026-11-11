@@ -6,10 +6,12 @@ import { errorResponse, successResponse, ApiResponse } from '../utils/response';
 export interface PaymentWebhookPayload {
   bookingId: string;
   status: 'SUCCESS' | 'FAILED';
+  utr?: string;
+  paymentMethod?: string;
 }
 
 export async function processPaymentWebhook(payload: PaymentWebhookPayload): Promise<ApiResponse> {
-  const { bookingId, status } = payload;
+  const { bookingId, status, utr, paymentMethod } = payload;
 
   if (!bookingId || !status) {
     return errorResponse('bookingId and status (SUCCESS or FAILED) are required', 400);
@@ -28,10 +30,13 @@ export async function processPaymentWebhook(payload: PaymentWebhookPayload): Pro
     // 1. Confirm reservation in Redis (remove temporary hold key)
     await redisService.confirmReservation(bookingId);
 
-    // 2. Update status in DynamoDB to CONFIRMED
-    const updated = await dynamoService.updateBookingStatus(bookingId, 'CONFIRMED');
+    // 2. Update status in DynamoDB to CONFIRMED with UTR reference
+    const updated = await dynamoService.updateBookingStatus(bookingId, 'CONFIRMED', {
+      utr: utr || 'N/A (Direct)',
+      paymentMethod: paymentMethod || 'UPI',
+    });
 
-    console.log(`[Payment] Booking ${bookingId} confirmed successfully.`);
+    console.log(`[Payment] Booking ${bookingId} confirmed successfully with UTR: ${utr || 'N/A'}`);
     return successResponse({
       message: 'Payment verified and ticket booking CONFIRMED.',
       booking: updated,

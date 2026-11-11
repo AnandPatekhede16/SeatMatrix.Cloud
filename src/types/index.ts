@@ -14,6 +14,8 @@ export interface BookingRecord {
   status: ReservationStatus;
   createdAt: string;
   expiresAt: number; // Unix timestamp in seconds (DynamoDB TTL)
+  utr?: string;
+  paymentMethod?: string;
 }
 
 export interface EventInventory {
