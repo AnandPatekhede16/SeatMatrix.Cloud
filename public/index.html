@@ -51,7 +51,7 @@
   <div id="authScreen" class="min-h-screen flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950">
     <div class="absolute -top-40 -right-40 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
     <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-cyan-600/15 rounded-full blur-3xl pointer-events-none"></div>
-    <div class="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:20px_20px] opacity-15"></div>
+    <div class="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:20px_20px] opacity-15 pointer-events-none"></div>
 
     <div class="max-w-md w-full relative z-10 glass-card rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-2xl glow-indigo">
       
@@ -1456,8 +1456,12 @@
 
     function regenerateKey() {
       const key = generateUUID();
-      document.getElementById('currentIdempotencyKey').innerText = key.substring(0, 16) + '...';
-      document.getElementById('currentIdempotencyKey').dataset.fullKey = key;
+      const el = document.getElementById('currentIdempotencyKey');
+      if (el) {
+        el.innerText = key.substring(0, 16) + '...';
+        if (!el.dataset) el.dataset = {};
+        el.dataset.fullKey = key;
+      }
     }
 
     async function handleReserve(e) {
@@ -1726,8 +1730,6 @@
         }
       } catch (err) {
         alert('Payment webhook failed: ' + err.message);
-      }
-    }
       }
     }
 
