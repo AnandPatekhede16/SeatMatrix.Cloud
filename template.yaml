@@ -1,0 +1,168 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Production-Grade Distributed High-Concurrency Ticket Reservation Engine
+
+Globals:
+  Function:
+    Timeout: 15
+    Runtime: nodejs20.x
+    MemorySize: 256
+    Environment:
+      Variables:
+        NODE_ENV: production
+        DYNAMODB_EVENTS_TABLE: !Ref EventsInventoryTable
+        DYNAMODB_BOOKINGS_TABLE: !Ref BookingsTable
+        DYNAMODB_IDEMPOTENCY_TABLE: !Ref IdempotencyTable
+        SQS_QUEUE_URL: !Ref TicketBookingQueue
+        REDIS_URL: !Ref RedisUrlParameter
+        RESERVATION_TTL_SECONDS: '300'
+
+Parameters:
+  RedisUrlParameter:
+    Type: String
+    Default: 'redis://localhost:6379'
+    Description: Upstash Serverless Redis or ElastiCache connection string
+
+Resources:
+  # ==========================================
+  # 1. DynamoDB Tables
+  # ==========================================
+  EventsInventoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: EventsInventory
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: eventId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: eventId
+          KeyType: HASH
+
+  BookingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Bookings
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: bookingId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: bookingId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  IdempotencyTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: IdempotencyKeys
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: idempotencyKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: idempotencyKey
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # ==========================================
+  # 2. SQS Queues (Decoupling & DLQ)
+  # ==========================================
+  TicketBookingDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: TicketBookingDLQ
+      MessageRetentionPeriod: 1209600 # 14 days
+
+  TicketBookingQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: TicketBookingQueue
+      VisibilityTimeout: 30
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt TicketBookingDLQ.Arn
+        maxReceiveCount: 3
+
+  # ==========================================
+  # 3. Serverless Lambda Handlers
+  # ==========================================
+  ReserveFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./dist
+      Handler: src/handlers/reserve.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EventsInventoryTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BookingsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref IdempotencyTable
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt TicketBookingQueue.QueueName
+      Events:
+        ReserveApi:
+          Type: Api
+          Properties:
+            Path: /reserve
+            Method: post
+
+  GetEventFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./dist
+      Handler: src/handlers/getEvent.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref EventsInventoryTable
+      Events:
+        GetEventApi:
+          Type: Api
+          Properties:
+            Path: /events/{eventId}
+            Method: get
+
+  PaymentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./dist
+      Handler: src/handlers/payment.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BookingsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EventsInventoryTable
+      Events:
+        PaymentApi:
+          Type: Api
+          Properties:
+            Path: /payment-webhook
+            Method: post
+
+  WorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./dist
+      Handler: src/handlers/worker.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EventsInventoryTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BookingsTable
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt TicketBookingQueue.Arn
+            BatchSize: 10
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+
+Outputs:
+  ApiGatewayUrl:
+    Description: Prod API Gateway Endpoint URL
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"

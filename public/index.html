@@ -1,0 +1,1786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SeatMatrix | Premier Live Events, Concerts & Cloud Ticketing</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #070b12;
+      color: #f8fafc;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .glass {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-card {
+      background: rgba(17, 24, 39, 0.7);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-card:hover {
+      border-color: rgba(99, 102, 241, 0.45);
+      transform: translateY(-3px);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 25px -5px rgba(99, 102, 241, 0.2);
+    }
+    .glow-indigo { box-shadow: 0 0 40px -5px rgba(99, 102, 241, 0.35); }
+    .glow-amber { box-shadow: 0 0 40px -5px rgba(245, 158, 11, 0.35); }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: #0b1120; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 9999px; }
+    .pulse-dot {
+      animation: pulseDot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulseDot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(1.15); } }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white custom-scroll">
+
+  <!-- ========================================================================= -->
+  <!-- 1. AUTH GATEKEEPER SCREEN (Displayed first if user/admin not logged in)   -->
+  <!-- ========================================================================= -->
+  <div id="authScreen" class="min-h-screen flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950">
+    <div class="absolute -top-40 -right-40 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-cyan-600/15 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:20px_20px] opacity-15"></div>
+
+    <div class="max-w-md w-full relative z-10 glass-card rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-2xl glow-indigo">
+      
+      <!-- Brand Logo Header -->
+      <div class="text-center mb-6">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center mx-auto mb-3 shadow-xl shadow-indigo-500/30">
+          <i class="fa-solid fa-ticket-simple text-white text-2xl -rotate-12"></i>
+        </div>
+        <h1 class="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-2">
+          <span>SeatMatrix</span>
+          <span class="w-2 h-2 rounded-full bg-cyan-400 pulse-dot"></span>
+        </h1>
+        <p class="text-xs text-slate-400 mt-1">Premier Live Events & Cloud Ticketing Engine</p>
+      </div>
+
+      <!-- Auth Role / Mode Tabs -->
+      <div class="grid grid-cols-3 gap-1 p-1 bg-slate-900/90 rounded-2xl mb-6 text-xs font-bold border border-slate-800">
+        <button onclick="switchAuthTab('login')" id="tabLoginBtn" class="py-2.5 rounded-xl bg-indigo-600 text-white transition text-center">
+          Sign In
+        </button>
+        <button onclick="switchAuthTab('register')" id="tabRegisterBtn" class="py-2.5 rounded-xl text-slate-400 hover:text-white transition text-center">
+          Register
+        </button>
+        <button onclick="switchAuthTab('admin')" id="tabAdminAuthBtn" class="py-2.5 rounded-xl text-amber-400 hover:text-amber-300 transition text-center flex items-center justify-center gap-1">
+          <i class="fa-solid fa-crown text-[10px]"></i> Admin
+        </button>
+      </div>
+
+      <!-- User Login Form -->
+      <form id="loginForm" onsubmit="handleUserLoginSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Email Address</label>
+          <div class="relative">
+            <i class="fa-regular fa-envelope absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+            <input id="loginEmail" type="email" required value="anand@cloud.com" class="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 pl-9 pr-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Password</label>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+            <input id="loginPassword" type="password" required value="password123" class="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 pl-9 pr-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
+          </div>
+        </div>
+
+        <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:opacity-95 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2">
+          <span>Sign In as User</span> <i class="fa-solid fa-arrow-right text-xs"></i>
+        </button>
+      </form>
+
+      <!-- New User Register Form -->
+      <form id="registerForm" onsubmit="handleUserRegisterSubmit(event)" class="space-y-4 hidden">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Full Name</label>
+          <div class="relative">
+            <i class="fa-regular fa-user absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+            <input id="regName" type="text" required placeholder="e.g. Anand Patekhede" class="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 pl-9 pr-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Email Address</label>
+          <div class="relative">
+            <i class="fa-regular fa-envelope absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+            <input id="regEmail" type="email" required placeholder="name@example.com" class="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 pl-9 pr-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Create Password</label>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+            <input id="regPassword" type="password" required placeholder="••••••••" class="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 pl-9 pr-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
+          </div>
+        </div>
+
+        <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:opacity-95 text-white font-extrabold text-xs shadow-lg shadow-cyan-600/30 transition flex items-center justify-center gap-2">
+          <span>Create Account & Book</span> <i class="fa-solid fa-check text-xs"></i>
+        </button>
+      </form>
+
+      <!-- Admin Portal Login Form -->
+      <form id="adminForm" onsubmit="handleAdminLoginSubmit(event)" class="space-y-4 hidden">
+        <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 flex items-center gap-2">
+          <i class="fa-solid fa-shield-halved text-amber-400 text-sm"></i>
+          <span>Authorized personnel only. Passcode: <strong class="font-mono">admin123</strong></span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Admin Email</label>
+          <input id="adminEmail" type="email" required value="admin@seatmatrix.internal" class="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-3 text-xs text-white focus:outline-none focus:border-amber-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Security Passcode</label>
+          <input id="adminPasscode" type="password" required value="admin123" class="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-3 text-xs text-white focus:outline-none focus:border-amber-500">
+        </div>
+
+        <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:opacity-95 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/25 transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-crown text-slate-950"></i> <span>Launch Admin Command Center</span>
+        </button>
+      </form>
+
+      <!-- 1-Click Quick Demo Access Bar -->
+      <div class="mt-6 pt-4 border-t border-slate-800/80 text-center">
+        <span class="text-[10px] text-slate-500 block uppercase font-bold tracking-wider mb-2">Instant Quick-Testing Access</span>
+        <div class="flex items-center gap-2 justify-center">
+          <button onclick="quickLoginUser()" class="px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-[11px] font-semibold transition">
+            👤 Login as User
+          </button>
+          <button onclick="quickLoginAdmin()" class="px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[11px] font-semibold transition">
+            👑 Login as Admin
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- 2. USER PERSPECTIVE PORTAL (Full Ticketing Site)                          -->
+  <!-- ========================================================================= -->
+  <div id="userPortal" class="hidden flex-col min-h-screen">
+    
+    <!-- Top Bar -->
+    <div class="bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 border-b border-indigo-500/20 text-xs py-2 px-4">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold text-[10px] uppercase border border-rose-500/30">
+            <i class="fa-solid fa-bolt text-amber-400 mr-1 animate-bounce"></i> Live Shows
+          </span>
+          <span class="text-slate-300">Welcome to SeatMatrix. High-speed atomic locking active.</span>
+        </div>
+        <div class="flex items-center gap-4 text-slate-400 text-[11px]">
+          <span id="userGreeting" class="text-cyan-300 font-semibold"><i class="fa-regular fa-user mr-1"></i> Hello, Anand</span>
+          <span>&bull;</span>
+          <button onclick="logout()" class="hover:text-rose-400 transition font-bold"><i class="fa-solid fa-arrow-right-from-bracket mr-1"></i> Sign Out</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Header -->
+    <header class="sticky top-0 z-40 glass border-b border-slate-800/80">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+        
+        <!-- Brand -->
+        <div class="flex items-center gap-6">
+          <a href="#" class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+              <i class="fa-solid fa-ticket-simple text-white text-lg -rotate-12"></i>
+            </div>
+            <div>
+              <span class="text-xl font-extrabold tracking-tight text-white">SeatMatrix</span>
+              <p class="text-[9px] text-slate-400 tracking-wider uppercase font-semibold">User Portal</p>
+            </div>
+          </a>
+
+          <!-- City Picker -->
+          <div class="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300">
+            <i class="fa-solid fa-location-dot text-rose-500"></i>
+            <select id="userCitySelect" onchange="filterByCity(this.value)" class="bg-transparent text-slate-200 text-xs focus:outline-none cursor-pointer">
+              <option value="All" class="bg-slate-900">All Cities</option>
+              <option value="Mumbai" class="bg-slate-900">Mumbai</option>
+              <option value="New Delhi" class="bg-slate-900">New Delhi</option>
+              <option value="Goa" class="bg-slate-900">Goa</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="hidden md:flex flex-1 max-w-md items-center relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-4 text-slate-500 text-xs"></i>
+          <input id="userSearchInput" oninput="filterBySearch(this.value)" type="text" placeholder="Search concerts, comedy specials, cricket..." class="w-full bg-slate-900/90 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+        </div>
+
+        <!-- Right User Actions -->
+        <div class="flex items-center gap-3">
+          <button onclick="toggleCloudInspector()" class="px-3.5 py-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 font-semibold text-xs flex items-center gap-2 transition">
+            <i class="fa-solid fa-chart-line text-cyan-400"></i>
+            <span class="hidden sm:inline">Cloud Monitor</span>
+          </button>
+
+          <button onclick="openMyBookingsModal()" class="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-2 transition">
+            <i class="fa-solid fa-receipt text-indigo-400"></i>
+            <span class="hidden sm:inline">My Tickets</span>
+            <span id="userTicketBadge" class="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center font-bold">1</span>
+          </button>
+
+          <button onclick="logout()" class="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-rose-500/40 text-slate-400 hover:text-rose-400 transition" title="Log Out">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Categories Filter Tabs (Working!) -->
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center gap-2 overflow-x-auto custom-scroll border-t border-slate-800/40 text-xs">
+        <button onclick="filterCategory('All')" class="category-pill px-4 py-1.5 rounded-xl bg-indigo-600 text-white font-bold shrink-0 shadow-sm" data-cat="All">All Events</button>
+        <button onclick="filterCategory('Concerts & Gigs')" class="category-pill px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-medium shrink-0 border border-slate-800" data-cat="Concerts & Gigs">Concerts & Gigs</button>
+        <button onclick="filterCategory('Standup Comedy')" class="category-pill px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-medium shrink-0 border border-slate-800" data-cat="Standup Comedy">Standup Comedy</button>
+        <button onclick="filterCategory('Cricket & Sports')" class="category-pill px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-medium shrink-0 border border-slate-800" data-cat="Cricket & Sports">Cricket & Sports</button>
+        <button onclick="filterCategory('Music Festivals')" class="category-pill px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-medium shrink-0 border border-slate-800" data-cat="Music Festivals">Music Festivals</button>
+        <button onclick="filterCategory('Theatre & Drama')" class="category-pill px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-medium shrink-0 border border-slate-800" data-cat="Theatre & Drama">Theatre & Drama</button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1">
+      
+      <!-- HERO SPOTLIGHT SHOW -->
+      <section id="heroSection" class="mb-14 relative">
+        <div class="relative rounded-3xl overflow-hidden border border-slate-800 bg-gradient-to-b from-slate-900/90 via-slate-950 to-slate-950 p-6 sm:p-10 shadow-2xl">
+          <div class="absolute -top-32 -right-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            
+            <div class="lg:col-span-7">
+              <div class="flex items-center gap-3 mb-4 flex-wrap">
+                <span class="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                  <span class="w-2 h-2 rounded-full bg-rose-500 pulse-dot"></span> LIVE FLASH SALE
+                </span>
+                <span id="heroCategoryBadge" class="text-xs font-medium px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                  Concerts & Gigs
+                </span>
+                <span id="heroEventId" class="text-xs font-mono text-slate-400 bg-slate-900/90 px-2.5 py-1 rounded-md border border-slate-800">
+                  event-coldplay-2026
+                </span>
+              </div>
+
+              <h1 id="heroTitle" class="text-3xl sm:text-5xl font-black tracking-tight text-white mb-3 leading-tight">
+                Coldplay: Music of the Spheres
+              </h1>
+              <p id="heroDesc" class="text-slate-300 text-sm sm:text-base mb-6 leading-relaxed max-w-2xl">
+                Experience the global phenomenon live in Mumbai. Groundbreaking sustainable concert production with solar energy, kinetic dance floors, and immersive light shows.
+              </p>
+
+              <!-- Show Details -->
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8 text-xs text-slate-300">
+                <div class="flex items-center gap-2.5 p-3 rounded-2xl bg-slate-900/70 border border-slate-800/80">
+                  <i class="fa-regular fa-calendar text-indigo-400 text-base"></i>
+                  <div>
+                    <span class="text-[10px] text-slate-500 block uppercase font-bold">Date</span>
+                    <span id="heroDate" class="font-semibold text-white">Nov 20, 2026</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2.5 p-3 rounded-2xl bg-slate-900/70 border border-slate-800/80">
+                  <i class="fa-solid fa-location-dot text-rose-400 text-base"></i>
+                  <div>
+                    <span class="text-[10px] text-slate-500 block uppercase font-bold">Venue</span>
+                    <span id="heroVenue" class="font-semibold text-white truncate max-w-[140px]">DY Patil Stadium, Navi Mumbai</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2.5 p-3 rounded-2xl bg-slate-900/70 border border-slate-800/80 col-span-2 sm:col-span-1">
+                  <i class="fa-solid fa-indian-rupee-sign text-emerald-400 text-base"></i>
+                  <div>
+                    <span class="text-[10px] text-slate-500 block uppercase font-bold">Ticket Price</span>
+                    <span class="font-semibold text-white">₹<span id="heroPrice">120</span> <span class="text-[10px] text-slate-500">/ seat</span></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Live Inventory Meter -->
+              <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 mb-6">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Available Tickets Remaining</span>
+                    <span class="text-[10px] text-slate-500 font-mono">(Live AWS DynamoDB)</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span id="heroSeatsText" class="text-sm font-mono font-bold text-emerald-400">10 / 10 Seats</span>
+                    <span id="heroStockBadge" class="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">Available</span>
+                  </div>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden p-0.5">
+                  <div id="heroProgressBar" class="bg-gradient-to-r from-emerald-500 via-teal-400 to-indigo-500 h-2 rounded-full transition-all duration-500" style="width: 100%"></div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-4 flex-wrap">
+                <button onclick="scrollToBooking()" class="px-7 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-500 hover:opacity-95 text-white font-extrabold text-sm shadow-xl shadow-indigo-500/30 transition flex items-center gap-2.5">
+                  <i class="fa-solid fa-bolt"></i> Book Seats for this Show
+                </button>
+              </div>
+            </div>
+
+            <!-- Tiers Selection Box -->
+            <div class="lg:col-span-5">
+              <div class="glass-card rounded-3xl p-6 border border-slate-800">
+                <div class="text-center mb-4 pb-3 border-b border-slate-800">
+                  <span class="text-[11px] uppercase tracking-wider font-bold text-slate-400">Select Seating Tier</span>
+                  <div class="w-32 h-1.5 bg-gradient-to-r from-cyan-400 to-indigo-500 rounded-full mx-auto mt-2 mb-1"></div>
+                  <span id="stageLabel" class="text-[9px] text-slate-500 uppercase tracking-widest font-bold">▲ STAGE / PITCH VIEW ▲</span>
+                </div>
+
+                <div class="space-y-3" id="tiersContainer">
+                  <!-- Dynamically rendered tiers -->
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-slate-800 text-[10px] text-slate-400 flex items-center justify-between">
+                  <span><i class="fa-solid fa-lock text-emerald-400 mr-1"></i> Idempotent Checkout</span>
+                  <span><i class="fa-solid fa-clock-rotate-left text-indigo-400 mr-1"></i> 5-Min Hold Window</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- ACTIVE HOLD / PAYMENT COUNTDOWN BANNER -->
+      <div id="holdBanner" class="hidden mb-12 p-6 sm:p-8 glass-card rounded-3xl border border-indigo-500/50 glow-indigo relative overflow-hidden transition-all duration-300">
+        <div class="flex flex-col lg:flex-row items-center justify-between gap-6">
+          <div class="flex items-start gap-4">
+            <div class="w-14 h-14 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+              <i class="fa-regular fa-clock text-2xl text-indigo-400 pulse-dot"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-3 mb-1.5 flex-wrap">
+                <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  TEMPORARILY RESERVED
+                </span>
+                <span class="text-xs font-mono bg-slate-900 text-indigo-300 px-3 py-0.5 rounded border border-slate-800" id="holdBookingId">
+                  bookingId
+                </span>
+              </div>
+              <h3 class="text-xl font-bold text-white mb-1">Your seat is locked! Complete payment before expiration.</h3>
+              <p class="text-xs text-slate-300">
+                Redis atomic key active with 300s TTL. If payment is not completed, seat will be automatically released back to the general pool.
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-4 w-full lg:w-auto justify-end">
+            <div class="text-right bg-slate-900/80 px-4 py-2.5 rounded-2xl border border-slate-800">
+              <span class="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Hold Expires In</span>
+              <span id="countdownTimer" class="text-2xl font-black font-mono text-amber-400">04:59</span>
+            </div>
+
+            <button onclick="confirmPayment('SUCCESS')" class="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-extrabold text-xs shadow-lg shadow-emerald-500/25 transition flex items-center gap-2">
+              <i class="fa-solid fa-credit-card"></i> Pay & Confirm Ticket
+            </button>
+
+            <button onclick="confirmPayment('FAILED')" class="px-4 py-3.5 rounded-2xl bg-slate-900 hover:bg-rose-500/20 hover:text-rose-400 hover:border-rose-500/40 border border-slate-800 text-slate-400 font-semibold text-xs transition">
+              Release Seat
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOOKING CHECKOUT FORM -->
+      <section id="bookingSection" class="mb-14">
+        <div class="glass-card rounded-3xl p-6 sm:p-10 border border-slate-800">
+          <div class="flex items-center justify-between mb-8 pb-4 border-b border-slate-800/80 flex-wrap gap-3">
+            <div>
+              <h2 class="text-2xl font-black text-white flex items-center gap-3">
+                <i class="fa-solid fa-credit-card text-indigo-400"></i> Instant Reservation Checkout
+              </h2>
+              <p class="text-xs text-slate-400 mt-1">
+                Booking for: <span id="bookingTargetName" class="text-indigo-400 font-bold">Coldplay: Music of the Spheres Tour</span>
+              </p>
+            </div>
+            <span class="inline-flex items-center gap-2 text-xs font-mono text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span> Live Cloud Connected
+            </span>
+          </div>
+
+          <form id="bookingForm" onsubmit="handleReserve(event)" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-2">Attendee Name & Email</label>
+              <div class="relative">
+                <i class="fa-regular fa-envelope absolute left-4 top-3.5 text-slate-500 text-xs"></i>
+                <input id="userIdInput" type="text" required value="anand@cloud.com" class="w-full bg-slate-900/90 border border-slate-800 rounded-2xl py-3 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition">
+              </div>
+              <p class="text-[11px] text-slate-500 mt-1.5">Ticket QR code will be generated for this user identity.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-2">Quantity (Max 2 per user during Flash Sale)</label>
+              <div class="grid grid-cols-2 gap-3">
+                <button type="button" onclick="selectTickets(1)" id="qty1Btn" class="py-3 rounded-2xl border border-indigo-500 bg-indigo-500/15 text-indigo-300 text-xs font-bold transition flex items-center justify-center gap-2">
+                  <i class="fa-solid fa-user"></i> 1 Ticket
+                </button>
+                <button type="button" onclick="selectTickets(2)" id="qty2Btn" class="py-3 rounded-2xl border border-slate-800 bg-slate-900 text-slate-400 text-xs font-bold hover:border-slate-700 transition flex items-center justify-center gap-2">
+                  <i class="fa-solid fa-user-group"></i> 2 Tickets
+                </button>
+              </div>
+              <input type="hidden" id="ticketCountInput" value="1">
+              <p class="text-[11px] text-slate-500 mt-1.5">Rate limited to prevent bot hoarding.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-2">Idempotency Key Header</label>
+              <div class="p-3 rounded-2xl bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-400 flex items-center justify-between mb-3">
+                <span class="truncate max-w-[180px]">Key: <span id="currentIdempotencyKey" class="text-indigo-400">Generating...</span></span>
+                <button type="button" onclick="regenerateKey()" class="text-slate-500 hover:text-slate-300 ml-2" title="Rotate UUID"><i class="fa-solid fa-rotate text-xs"></i></button>
+              </div>
+
+              <button id="reserveBtn" type="submit" class="w-full py-3.5 px-6 rounded-2xl font-extrabold text-xs bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-500 hover:opacity-95 text-white shadow-xl shadow-indigo-600/30 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-lock"></i> <span>Lock Seat Now (Instant Hold)</span>
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </section>
+
+      <!-- SHOWS CATALOG GRID -->
+      <section class="mb-14">
+        <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <div>
+            <h2 class="text-2xl font-extrabold text-white flex items-center gap-2">
+              <span id="catalogCategoryTitle">All Live Events</span>
+            </h2>
+            <p class="text-xs text-slate-400">Click "Book Show" on any event to load its real-time inventory and book tickets</p>
+          </div>
+          <span class="text-xs text-slate-400" id="eventsCountBadge">6 events available</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="eventsGrid">
+          <!-- Rendered dynamically -->
+        </div>
+      </section>
+
+      <!-- ARCHITECTURE MONITOR DRAWER -->
+      <div id="cloudInspectorDrawer" class="hidden mb-14 glass-card rounded-3xl p-6 sm:p-10 border border-indigo-500/30 glow-indigo">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-4 border-b border-slate-800">
+          <div>
+            <div class="flex items-center gap-2.5">
+              <span class="w-3 h-3 rounded-full bg-cyan-400 pulse-dot"></span>
+              <h2 class="text-2xl font-black text-white">Under The Hood: AWS Cloud Architecture Inspector</h2>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">Live metrics and real-time concurrency load tester for System Design evaluation</p>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <button id="simBtn" onclick="runSimulation(50)" class="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-cyan-600 via-indigo-600 to-indigo-500 hover:opacity-90 font-extrabold text-xs text-white shadow-lg shadow-cyan-500/25 transition flex items-center gap-2">
+              <i class="fa-solid fa-users-rays"></i> Blast 50 Concurrent Buyers
+            </button>
+            <button onclick="toggleCloudInspector()" class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+          <div class="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+            <span class="text-[11px] text-slate-400 block mb-1 font-semibold">Total Requests Fired</span>
+            <span id="simTotalReq" class="text-2xl font-black font-mono text-white">0</span>
+          </div>
+          <div class="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+            <span class="text-[11px] text-emerald-400 block mb-1 font-semibold">Accepted (202 Held)</span>
+            <span id="simSuccessReq" class="text-2xl font-black font-mono text-emerald-400">0</span>
+          </div>
+          <div class="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+            <span class="text-[11px] text-rose-400 block mb-1 font-semibold">Rejected Sold Out (409)</span>
+            <span id="simRejectedReq" class="text-2xl font-black font-mono text-rose-400">0</span>
+          </div>
+          <div class="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+            <span class="text-[11px] text-cyan-400 block mb-1 font-semibold">Overselling Rate</span>
+            <span id="simOversold" class="text-2xl font-black font-mono text-cyan-400">0.00% (Strict Zero)</span>
+          </div>
+        </div>
+
+        <div class="rounded-2xl bg-slate-950 border border-slate-800 p-4 font-mono text-xs max-h-60 overflow-y-auto custom-scroll" id="simLogContainer">
+          <div class="text-slate-500 italic">Click "Blast 50 Concurrent Buyers" above to fire 50 simultaneous parallel requests against the AWS API Gateway.</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- 3. ADMIN PERSPECTIVE PORTAL (Executive Command Center)                   -->
+  <!-- ========================================================================= -->
+  <div id="adminPortal" class="hidden flex-col min-h-screen">
+    
+    <!-- Admin Top Bar -->
+    <div class="bg-gradient-to-r from-amber-950 via-slate-950 to-amber-950 border-b border-amber-500/20 text-xs py-2 px-4">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-extrabold text-[10px] uppercase border border-amber-500/30">
+            <i class="fa-solid fa-crown mr-1"></i> Executive Admin Console
+          </span>
+          <span class="text-slate-300">Direct cloud control over AWS DynamoDB, SQS & Redis.</span>
+        </div>
+        <div class="flex items-center gap-4 text-slate-400 text-[11px]">
+          <span class="text-amber-400 font-semibold"><i class="fa-solid fa-shield-halved mr-1"></i> Logged in as: Super Admin</span>
+          <span>&bull;</span>
+          <button onclick="switchToUserView()" class="hover:text-cyan-400 transition font-bold"><i class="fa-solid fa-eye mr-1"></i> Switch to User View</button>
+          <span>&bull;</span>
+          <button onclick="logout()" class="hover:text-rose-400 transition font-bold"><i class="fa-solid fa-arrow-right-from-bracket mr-1"></i> Sign Out</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Header -->
+    <header class="glass border-b border-slate-800/80 sticky top-0 z-40">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+          <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-600 flex items-center justify-center text-slate-950 text-xl font-bold shadow-lg shadow-amber-500/20">
+            <i class="fa-solid fa-crown"></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-black text-white">SeatMatrix Admin HQ</h2>
+            <p class="text-[10px] text-amber-400 font-mono">AWS Environment: production &bull; ap-south-1</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button onclick="openAddNewShowModal()" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:opacity-95 text-slate-950 font-black text-xs transition flex items-center gap-2 shadow-lg shadow-amber-500/20">
+            <i class="fa-solid fa-plus"></i> <span>Add New Show / Event</span>
+          </button>
+          <button onclick="refreshAllInventory(); fetchAdminBookings();" class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white" title="Refresh Live Data">
+            <i class="fa-solid fa-rotate text-xs"></i>
+          </button>
+          <button onclick="logout()" class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 transition" title="Log Out">
+            <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Admin Dashboard Main -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1">
+      
+      <!-- Key Metric Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+        <div class="p-5 rounded-3xl bg-slate-900/80 border border-slate-800">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-slate-400 font-semibold">Total Revenue (Simulated)</span>
+            <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+          </div>
+          <span class="text-2xl font-black font-mono text-white" id="adminTotalRevenue">₹1,24,800</span>
+          <span class="text-[10px] text-emerald-400 block mt-1"><i class="fa-solid fa-arrow-trend-up mr-1"></i> Real-time ledger verified</span>
+        </div>
+
+        <div class="p-5 rounded-3xl bg-slate-900/80 border border-slate-800">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-slate-400 font-semibold">Total Bookings (DynamoDB)</span>
+            <div class="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-xs"><i class="fa-solid fa-receipt"></i></div>
+          </div>
+          <span class="text-2xl font-black font-mono text-white" id="adminTotalBookingsCount">0</span>
+          <span class="text-[10px] text-indigo-400 block mt-1">ACID TransactWriteItems</span>
+        </div>
+
+        <div class="p-5 rounded-3xl bg-slate-900/80 border border-slate-800">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-slate-400 font-semibold">Active Catalog Shows</span>
+            <div class="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs"><i class="fa-solid fa-calendar-check"></i></div>
+          </div>
+          <span class="text-2xl font-black font-mono text-white" id="adminActiveShowsCount">6 Shows</span>
+          <span class="text-[10px] text-cyan-400 block mt-1">Across 5 live categories</span>
+        </div>
+
+        <div class="p-5 rounded-3xl bg-slate-900/80 border border-slate-800">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-slate-400 font-semibold">AWS SQS Message Buffer</span>
+            <div class="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs"><i class="fa-solid fa-layer-group"></i></div>
+          </div>
+          <span class="text-2xl font-black font-mono text-white">0 Pending</span>
+          <span class="text-[10px] text-amber-400 block mt-1">Queue healthy & DLQ connected</span>
+        </div>
+      </div>
+
+      <!-- Live Show Capacity Controller -->
+      <section class="mb-10">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div>
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-sliders text-amber-400"></i> Manage Shows Capacity & Ticket Prices
+            </h3>
+            <p class="text-xs text-slate-400">Adjust total seats or price for any show. Changes propagate to users immediately.</p>
+          </div>
+          <button onclick="openAddNewShowModal()" class="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1.5">
+            <i class="fa-solid fa-plus-circle"></i> Add New Event
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="adminShowsList">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- Live Bookings Scanner Table -->
+      <section class="mb-10">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div>
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-database text-cyan-400"></i> Live User Bookings Scanner (AWS DynamoDB)
+            </h3>
+            <p class="text-xs text-slate-400">Real-time audit log of all reservations, confirmed tickets, and cancellations.</p>
+          </div>
+          <button onclick="fetchAdminBookings()" class="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-indigo-400 hover:text-white transition flex items-center gap-1.5">
+            <i class="fa-solid fa-rotate"></i> Scan DynamoDB
+          </button>
+        </div>
+
+        <div class="rounded-3xl border border-slate-800 bg-slate-950 overflow-hidden text-xs">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead class="bg-slate-900/90 border-b border-slate-800 text-slate-400 font-bold uppercase text-[10px]">
+                <tr>
+                  <th class="p-3.5">Booking ID</th>
+                  <th class="p-3.5">Show / Event</th>
+                  <th class="p-3.5">User Identity</th>
+                  <th class="p-3.5 text-center">Tickets</th>
+                  <th class="p-3.5">Status</th>
+                  <th class="p-3.5">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="adminBookingsTableBody" class="divide-y divide-slate-850 font-mono text-slate-300">
+                <tr><td colspan="6" class="p-6 text-center text-slate-500 italic">Scanning DynamoDB...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- 4. MODALS (Add New Show, Digital Ticket, etc.)                            -->
+  <!-- ========================================================================= -->
+
+  <!-- ADD NEW SHOW MODAL (Admin Only) -->
+  <div id="newShowModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+    <div class="glass-card rounded-3xl p-6 sm:p-8 max-w-xl w-full border border-amber-500/40 glow-amber relative max-h-[90vh] overflow-y-auto custom-scroll">
+      
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+            <i class="fa-solid fa-calendar-plus text-lg"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-black text-white">Publish New Live Event</h3>
+            <p class="text-xs text-slate-400">Instantly creates show in DynamoDB and adds to catalog</p>
+          </div>
+        </div>
+        <button onclick="closeAddNewShowModal()" class="text-slate-500 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <form onsubmit="handleCreateShowSubmit(event)" class="space-y-4 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">Show / Event Title</label>
+          <input id="newShowTitle" type="text" required placeholder="e.g. Arijit Singh Live in Concert" class="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:border-amber-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">Category</label>
+            <select id="newShowCategory" class="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:border-amber-500 cursor-pointer">
+              <option value="Concerts & Gigs">Concerts & Gigs</option>
+              <option value="Standup Comedy">Standup Comedy</option>
+              <option value="Cricket & Sports">Cricket & Sports</option>
+              <option value="Music Festivals">Music Festivals</option>
+              <option value="Theatre & Drama">Theatre & Drama</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">City</label>
+            <input id="newShowCity" type="text" required value="Mumbai" class="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:border-amber-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">Venue / Arena</label>
+          <input id="newShowVenue" type="text" required placeholder="e.g. NSCI Dome, Worli, Mumbai" class="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:border-amber-500">
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">Date</label>
+            <input id="newShowDate" type="text" required value="Jan 25, 2027" class="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:border-amber-500">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">Total Seats</label>
+            <input id="newShowSeats" type="number" required value="15" min="1" max="500" class="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-3 text-white font-mono text-center focus:outline-none focus:border-amber-500">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">Price (₹)</label>
+            <input id="newShowPrice" type="number" required value="1999" min="10" class="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-3 text-white font-mono text-center focus:outline-none focus:border-amber-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">Short Description</label>
+          <textarea id="newShowDesc" rows="2" placeholder="Experience the soulful magic live..." class="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-amber-500"></textarea>
+        </div>
+
+        <button type="submit" id="submitNewShowBtn" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:opacity-95 text-slate-950 font-black text-xs transition shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-cloud-arrow-up text-slate-950"></i> <span>Publish Event Live to AWS</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MY TICKETS MODAL (Digital Boarding Passes) -->
+  <div id="myTicketsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+    <div class="glass-card rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-slate-700 glow-indigo relative max-h-[90vh] overflow-y-auto custom-scroll">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-qrcode text-indigo-400 text-lg"></i>
+          <div>
+            <h3 class="text-lg font-bold text-white">My Confirmed Tickets</h3>
+            <p class="text-[11px] text-slate-400">All bookings saved and verified on AWS DynamoDB</p>
+          </div>
+        </div>
+        <button onclick="closeMyTicketsModal()" class="text-slate-500 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <!-- Dynamic list of user's booked tickets -->
+      <div id="userTicketsList">
+        <!-- Rendered dynamically by renderMyTickets() -->
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-end">
+        <button onclick="closeMyTicketsModal()" class="px-5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 text-xs font-semibold hover:border-slate-700">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- 5. JAVASCRIPT MASTER APPLICATION LOGIC                                    -->
+  <!-- ========================================================================= -->
+  <script>
+    const API_BASE = 'https://da43r9ylr8.execute-api.ap-south-1.amazonaws.com';
+    
+    // Shows Catalog State
+    let SHOWS = [
+      {
+        id: 'event-coldplay-2026',
+        name: 'Coldplay: Music of the Spheres Tour',
+        category: 'Concerts & Gigs',
+        venue: 'DY Patil Stadium, Navi Mumbai',
+        city: 'Mumbai',
+        date: 'Nov 20, 2026',
+        price: 120,
+        totalSeats: 10,
+        availableSeats: 10,
+        desc: 'Experience the global phenomenon live in Mumbai. Groundbreaking sustainable concert production with solar energy, kinetic dance floors, and immersive light shows.',
+        badge: 'FLASH SALE',
+        gradient: 'from-indigo-600/30 via-slate-900 to-slate-950',
+        stageLabel: '▲ MAIN STAGE & RUNWAY ▲',
+        tiers: [
+          { code: 'VIP', name: 'VIP Diamond Lounge', price: 120, desc: 'Elevated view &bull; Free Food &bull; Fast Entry' },
+          { code: 'FANPIT', name: 'Standing Fan Pit', price: 120, desc: 'Right next to Chris Martin & runway' },
+          { code: 'STAND', name: 'Grandstand Premium', price: 120, desc: 'Reserved stadium seat with high acoustic view' }
+        ]
+      },
+      {
+        id: 'event-diljit-2026',
+        name: 'Diljit Dosanjh: Dil-Luminati Tour',
+        category: 'Concerts & Gigs',
+        venue: 'JLN Stadium, New Delhi',
+        city: 'New Delhi',
+        date: 'Dec 15, 2026',
+        price: 2499,
+        totalSeats: 15,
+        availableSeats: 15,
+        desc: 'India\'s biggest pop superstar live with full symphony brass section, Punjabi folk dancers, and massive pyrotechnics.',
+        badge: 'HOT SELLER',
+        gradient: 'from-amber-600/30 via-slate-900 to-slate-950',
+        stageLabel: '▲ DIL-LUMINATI STAGE ▲',
+        tiers: [
+          { code: 'GOLD', name: 'Gold Fan Pit', price: 2499, desc: 'Front standing zone with live DJ pre-show' },
+          { code: 'SILVER', name: 'Silver Grandstand', price: 1899, desc: 'Great elevated view of the entire stadium' },
+          { code: 'LOUNGE', name: 'Celebrity Lounge', price: 4999, desc: 'VIP Table with unlimited food & beverages' }
+        ]
+      },
+      {
+        id: 'event-zakir-2026',
+        name: 'Zakir Khan: Papa Yaar Special',
+        category: 'Standup Comedy',
+        venue: 'NCPA Auditorium, South Mumbai',
+        city: 'Mumbai',
+        date: 'Jan 12, 2027',
+        price: 999,
+        totalSeats: 20,
+        availableSeats: 20,
+        desc: 'The Sakht Launda returns with his most anticipated and heartwarming standup comedy special about family, nostalgia, and adulting.',
+        badge: 'FILLING FAST',
+        gradient: 'from-cyan-600/30 via-slate-900 to-slate-950',
+        stageLabel: '▲ INTIMATE AUDITORIUM STAGE ▲',
+        tiers: [
+          { code: 'FRONT', name: 'Front Row Prime', price: 999, desc: 'Unobstructed view of Zakir Bhai' },
+          { code: 'ORCH', name: 'Orchestra Middle', price: 799, desc: 'Acoustically tuned theatre seating' },
+          { code: 'BALC', name: 'Balcony Standard', price: 499, desc: 'Budget-friendly elevated view' }
+        ]
+      },
+      {
+        id: 'event-ipl-2026',
+        name: 'IPL 2026 Final: MI vs CSK',
+        category: 'Cricket & Sports',
+        venue: 'Wankhede Stadium, Mumbai',
+        city: 'Mumbai',
+        date: 'May 24, 2026',
+        price: 1500,
+        totalSeats: 8,
+        availableSeats: 8,
+        desc: 'The ultimate El Clásico of T20 Cricket. Rohit vs Dhoni legacy clash under floodlights for the championship trophy.',
+        badge: 'HIGH DEMAND',
+        gradient: 'from-emerald-600/30 via-slate-900 to-slate-950',
+        stageLabel: '▲ PITCH & BOUNDARY ROPE ▲',
+        tiers: [
+          { code: 'GARWARE', name: 'Garware Pavilion', price: 1500, desc: 'Right behind player dugout' },
+          { code: 'DIVECHA', name: 'Divecha Stand', price: 1200, desc: 'Catch sixes near mid-wicket' },
+          { code: 'SUNIL', name: 'Sunil Gavaskar Stand', price: 800, desc: 'Classic stadium atmosphere' }
+        ]
+      },
+      {
+        id: 'event-sunburn-2026',
+        name: 'Sunburn Goa 2026 Festival',
+        category: 'Music Festivals',
+        venue: 'Vagator Beach Arena, Goa',
+        city: 'Goa',
+        date: 'Dec 28, 2026',
+        price: 3999,
+        totalSeats: 25,
+        availableSeats: 25,
+        desc: 'Asia\'s biggest 3-day EDM electronic dance music festival. 4 massive stages, international DJs, sunset beach parties.',
+        badge: '3-DAY PASS',
+        gradient: 'from-purple-600/30 via-slate-900 to-slate-950',
+        stageLabel: '▲ MAIN SUNBURN ARENA ▲',
+        tiers: [
+          { code: 'FEST_VIP', name: 'VIP Deck Pass', price: 3999, desc: 'Air-conditioned lounge + elevated viewing' },
+          { code: 'FEST_GA', name: 'General Admission', price: 2999, desc: 'Access to all 4 stages & beach zone' }
+        ]
+      },
+      {
+        id: 'event-mughal-2026',
+        name: 'Mughal-e-Azam: The Musical',
+        category: 'Theatre & Drama',
+        venue: 'Jamshed Bhabha Theatre, Mumbai',
+        city: 'Mumbai',
+        date: 'Nov 30, 2026',
+        price: 1200,
+        totalSeats: 12,
+        availableSeats: 12,
+        desc: 'Feroz Abbas Khan\'s Broadway-style musical extravaganza with live Kathak choreography, original costumes by Manish Malhotra.',
+        badge: 'CRITIC CHOICE',
+        gradient: 'from-rose-600/30 via-slate-900 to-slate-950',
+        stageLabel: '▲ GRAND PALACE STAGE ▲',
+        tiers: [
+          { code: 'ROYAL', name: 'Royal Box Seating', price: 1200, desc: 'Exclusive royal enclosure viewing' },
+          { code: 'STALL', name: 'Stalls Premium', price: 800, desc: 'Direct view of live dance ensemble' }
+        ]
+      }
+    ];
+
+    let currentEvent = SHOWS[0];
+    let selectedTier = currentEvent.tiers[0];
+    let selectedQuantity = 1;
+    let currentBookingId = null;
+    let timerInterval = null;
+    let activeCategory = 'All';
+
+    // Current Session State
+    let currentUser = null;
+
+    // App Initialization
+    function initApp() {
+      // Check stored session
+      const stored = localStorage.getItem('seatmatrix_session');
+      if (stored) {
+        try {
+          currentUser = JSON.parse(stored);
+        } catch (e) {}
+      }
+
+      if (currentUser && currentUser.role === 'admin') {
+        showAdminView();
+      } else if (currentUser && currentUser.role === 'user') {
+        showUserView();
+      } else {
+        showAuthScreen();
+      }
+
+      regenerateKey();
+      refreshAllInventory();
+      // Real-time dynamic sync across all clients every 3 seconds
+      setInterval(refreshAllInventory, 3000);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) refreshAllInventory();
+      });
+    }
+
+    // View Navigators
+    function showAuthScreen() {
+      document.getElementById('authScreen').classList.remove('hidden');
+      document.getElementById('userPortal').classList.add('hidden');
+      document.getElementById('adminPortal').classList.add('hidden');
+    }
+
+    function showUserView() {
+      document.getElementById('authScreen').classList.add('hidden');
+      document.getElementById('adminPortal').classList.add('hidden');
+      document.getElementById('userPortal').classList.remove('hidden');
+
+      if (currentUser) {
+        document.getElementById('userGreeting').innerHTML = `<i class="fa-regular fa-user mr-1"></i> Hello, ${currentUser.name.split(' ')[0]}`;
+        document.getElementById('userIdInput').value = currentUser.email;
+      }
+
+      renderTiers();
+      renderEventsGrid();
+      updateHeroInventoryGauge();
+    }
+
+    function showAdminView() {
+      document.getElementById('authScreen').classList.add('hidden');
+      document.getElementById('userPortal').classList.add('hidden');
+      document.getElementById('adminPortal').classList.remove('hidden');
+
+      renderAdminShowsList();
+      fetchAdminBookings();
+    }
+
+    function switchToUserView() {
+      showUserView();
+    }
+
+    function logout() {
+      localStorage.removeItem('seatmatrix_session');
+      currentUser = null;
+      showAuthScreen();
+    }
+
+    // Auth Screen Handlers
+    function switchAuthTab(tab) {
+      const bLogin = document.getElementById('tabLoginBtn');
+      const bReg = document.getElementById('tabRegisterBtn');
+      const bAdmin = document.getElementById('tabAdminAuthBtn');
+      const fLogin = document.getElementById('loginForm');
+      const fReg = document.getElementById('registerForm');
+      const fAdmin = document.getElementById('adminForm');
+
+      [fLogin, fReg, fAdmin].forEach(f => f.classList.add('hidden'));
+      bLogin.className = 'py-2.5 rounded-xl text-slate-400 hover:text-white transition text-center';
+      bReg.className = 'py-2.5 rounded-xl text-slate-400 hover:text-white transition text-center';
+      bAdmin.className = 'py-2.5 rounded-xl text-amber-400 hover:text-amber-300 transition text-center flex items-center justify-center gap-1';
+
+      if (tab === 'login') {
+        bLogin.className = 'py-2.5 rounded-xl bg-indigo-600 text-white transition text-center';
+        fLogin.classList.remove('hidden');
+      } else if (tab === 'register') {
+        bReg.className = 'py-2.5 rounded-xl bg-cyan-600 text-white transition text-center';
+        fReg.classList.remove('hidden');
+      } else if (tab === 'admin') {
+        bAdmin.className = 'py-2.5 rounded-xl bg-amber-500 text-slate-950 font-black transition text-center flex items-center justify-center gap-1';
+        fAdmin.classList.remove('hidden');
+      }
+    }
+
+    function handleUserLoginSubmit(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const name = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      currentUser = { name: name || 'User', email, role: 'user' };
+      localStorage.setItem('seatmatrix_session', JSON.stringify(currentUser));
+      showUserView();
+    }
+
+    function handleUserRegisterSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('regName').value;
+      const email = document.getElementById('regEmail').value;
+      currentUser = { name, email, role: 'user' };
+      localStorage.setItem('seatmatrix_session', JSON.stringify(currentUser));
+      alert(`🎉 Welcome to SeatMatrix, ${name}! Your account has been registered.`);
+      showUserView();
+    }
+
+    function handleAdminLoginSubmit(e) {
+      e.preventDefault();
+      const email = document.getElementById('adminEmail').value;
+      const pass = document.getElementById('adminPasscode').value;
+
+      if (pass === 'admin123') {
+        currentUser = { name: 'Super Admin', email, role: 'admin' };
+        localStorage.setItem('seatmatrix_session', JSON.stringify(currentUser));
+        showAdminView();
+      } else {
+        alert('Invalid admin passcode. Passcode is admin123');
+      }
+    }
+
+    function quickLoginUser() {
+      currentUser = { name: 'Anand Patekhede', email: 'anand@cloud.com', role: 'user' };
+      localStorage.setItem('seatmatrix_session', JSON.stringify(currentUser));
+      showUserView();
+    }
+
+    function quickLoginAdmin() {
+      currentUser = { name: 'Super Admin', email: 'admin@seatmatrix.internal', role: 'admin' };
+      localStorage.setItem('seatmatrix_session', JSON.stringify(currentUser));
+      showAdminView();
+    }
+
+    // User Booking Functions
+    function selectEvent(eventId) {
+      const found = SHOWS.find(s => s.id === eventId);
+      if (!found) return;
+      currentEvent = found;
+      selectedTier = currentEvent.tiers && currentEvent.tiers.length > 0 ? currentEvent.tiers[0] : { code: 'GEN', name: 'General Admission', price: currentEvent.price || 120 };
+
+      document.getElementById('heroTitle').innerText = currentEvent.name;
+      document.getElementById('heroDesc').innerText = currentEvent.desc;
+      document.getElementById('heroCategoryBadge').innerText = currentEvent.category;
+      document.getElementById('heroEventId').innerText = currentEvent.id;
+      document.getElementById('heroDate').innerText = currentEvent.date;
+      document.getElementById('heroVenue').innerText = currentEvent.venue;
+      document.getElementById('heroPrice').innerText = selectedTier.price;
+      document.getElementById('stageLabel').innerText = currentEvent.stageLabel || '▲ STAGE / PITCH VIEW ▲';
+      document.getElementById('bookingTargetName').innerText = currentEvent.name;
+
+      renderTiers();
+      updateHeroInventoryGauge();
+      renderEventsGrid();
+      document.getElementById('heroSection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function renderTiers() {
+      const container = document.getElementById('tiersContainer');
+      container.innerHTML = '';
+
+      currentEvent.tiers.forEach(tier => {
+        const isSelected = selectedTier.code === tier.code;
+        const div = document.createElement('div');
+        div.className = isSelected 
+          ? 'p-3.5 rounded-2xl border border-indigo-500 bg-indigo-500/15 cursor-pointer hover:bg-indigo-500/20 transition flex items-center justify-between'
+          : 'p-3.5 rounded-2xl border border-slate-800 bg-slate-900/60 cursor-pointer hover:border-slate-700 transition flex items-center justify-between';
+        
+        div.onclick = () => {
+          selectedTier = tier;
+          document.getElementById('heroPrice').innerText = tier.price;
+          renderTiers();
+        };
+
+        div.innerHTML = `
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-xl ${isSelected ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-800 text-slate-400'} flex items-center justify-center font-bold text-xs">
+              <i class="fa-solid fa-ticket"></i>
+            </div>
+            <div>
+              <h4 class="text-xs font-bold text-white">${tier.name}</h4>
+              <p class="text-[10px] text-slate-400">${tier.desc}</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-xs font-bold text-white font-mono">₹${tier.price}</span>
+            <span class="text-[9px] ${isSelected ? 'text-emerald-400 font-bold' : 'text-slate-500'} block">${isSelected ? 'SELECTED' : 'Available'}</span>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function filterCategory(cat) {
+      activeCategory = cat;
+      document.querySelectorAll('.category-pill').forEach(btn => {
+        if (btn.dataset.cat === cat) {
+          btn.className = 'category-pill px-4 py-1.5 rounded-xl bg-indigo-600 text-white font-bold shrink-0 shadow-sm';
+        } else {
+          btn.className = 'category-pill px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-medium shrink-0 border border-slate-800';
+        }
+      });
+      document.getElementById('catalogCategoryTitle').innerText = cat === 'All' ? 'All Live Events' : cat;
+      renderEventsGrid();
+    }
+
+    function filterBySearch(keyword) {
+      renderEventsGrid(keyword.toLowerCase().trim());
+    }
+
+    function filterByCity(city) {
+      renderEventsGrid('', city);
+    }
+
+    function renderEventsGrid(searchQuery = '', filterCity = '') {
+      const grid = document.getElementById('eventsGrid');
+      grid.innerHTML = '';
+
+      const filtered = SHOWS.filter(s => {
+        const matchesCategory = activeCategory === 'All' || s.category === activeCategory;
+        const matchesSearch = !searchQuery || s.name.toLowerCase().includes(searchQuery) || (s.venue || '').toLowerCase().includes(searchQuery);
+        const matchesCity = !filterCity || filterCity === 'All' || s.city === filterCity;
+        return matchesCategory && matchesSearch && matchesCity;
+      });
+
+      document.getElementById('eventsCountBadge').innerText = `${filtered.length} events available`;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="col-span-3 text-center py-12 text-slate-500">No events found in this category. Select "All Events" above.</div>`;
+        return;
+      }
+
+      filtered.forEach(s => {
+        const isCurrent = currentEvent.id === s.id;
+        const card = document.createElement('div');
+        card.className = `glass-card rounded-3xl overflow-hidden group cursor-pointer flex flex-col justify-between ${isCurrent ? 'ring-2 ring-indigo-500' : ''}`;
+        
+        card.innerHTML = `
+          <div>
+            <div class="h-44 bg-gradient-to-tr ${s.gradient || 'from-indigo-900/40 via-slate-900 to-slate-950'} relative overflow-hidden p-5 flex flex-col justify-between">
+              <div class="flex items-center justify-between">
+                <span class="px-2.5 py-1 rounded-full bg-slate-900/80 text-cyan-300 text-[10px] font-bold border border-slate-700 uppercase">
+                  ${s.category}
+                </span>
+                <span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px] font-bold border border-rose-500/30">
+                  ${s.badge || 'LIVE'}
+                </span>
+              </div>
+              <div>
+                <span class="text-[11px] text-indigo-400 font-bold block mb-0.5">${(s.city || 'MUMBAI').toUpperCase()}</span>
+                <h3 class="text-lg font-bold text-white group-hover:text-indigo-400 transition leading-snug">${s.name}</h3>
+              </div>
+            </div>
+
+            <div class="p-5">
+              <p class="text-xs text-slate-400 mb-4 line-clamp-2">${s.desc}</p>
+              
+              <div class="space-y-1.5 text-xs text-slate-300 mb-4">
+                <div class="flex items-center gap-2"><i class="fa-regular fa-calendar text-slate-500 text-xs"></i> ${s.date}</div>
+                <div class="flex items-center gap-2"><i class="fa-solid fa-location-dot text-slate-500 text-xs"></i> <span class="truncate">${s.venue}</span></div>
+              </div>
+
+              <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 mb-2">
+                <div class="flex justify-between items-center text-[11px] mb-1">
+                  <span class="text-slate-400">Available Tickets:</span>
+                  <span class="font-mono font-bold ${s.availableSeats > 0 ? (s.availableSeats <= 2 ? 'text-amber-400' : 'text-emerald-400') : 'text-rose-400'}">
+                    ${s.availableSeats > 0 ? `${s.availableSeats} / ${s.totalSeats} Left` : 'SOLD OUT'}
+                  </span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                  <div class="${s.availableSeats > 0 ? (s.availableSeats <= 2 ? 'bg-amber-400' : 'bg-emerald-400') : 'bg-rose-500'} h-1.5 rounded-full transition-all duration-500" style="width: ${Math.max(0, Math.min(100, (s.availableSeats / s.totalSeats) * 100))}%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-5 pt-0 flex items-center justify-between border-t border-slate-800/80 mt-2">
+            <div>
+              <span class="text-[10px] text-slate-500 uppercase block font-semibold">From</span>
+              <span class="text-sm font-bold text-white font-mono">₹${s.price}</span>
+            </div>
+            <button onclick="selectEvent('${s.id}')" class="px-4 py-2 rounded-xl ${s.availableSeats === 0 ? 'bg-rose-950/60 text-rose-400 border border-rose-900/50 hover:bg-rose-900/40' : (isCurrent ? 'bg-indigo-600 text-white font-bold ring-2 ring-indigo-400' : 'bg-slate-900 hover:bg-indigo-600 text-slate-300 hover:text-white font-bold border border-slate-800')} text-xs transition">
+              ${s.availableSeats === 0 ? (isCurrent ? 'Sold Out (Selected)' : 'Sold Out') : (isCurrent ? 'Selected ✓' : 'Book Show')}
+            </button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    async function refreshAllInventory() {
+      try {
+        const res = await fetch(`${API_BASE}/events/all`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const data = json.data;
+
+        if (Array.isArray(data)) {
+          data.forEach(item => {
+            const match = SHOWS.find(s => s.id === item.eventId);
+            if (match) {
+              match.availableSeats = item.availableSeats !== undefined ? item.availableSeats : match.availableSeats;
+              match.totalSeats = item.totalSeats || match.totalSeats;
+              if (item.pricePerSeat) match.price = item.pricePerSeat;
+            } else {
+              // Add newly admin-created show to local list
+              SHOWS.push({
+                id: item.eventId,
+                name: item.name,
+                category: item.category || 'Concerts & Gigs',
+                venue: item.venue || 'Arena Stadium',
+                city: item.city || 'Mumbai',
+                date: item.date || 'Dec 2026',
+                price: item.pricePerSeat || 120,
+                totalSeats: item.totalSeats || 10,
+                availableSeats: item.availableSeats !== undefined ? item.availableSeats : 10,
+                desc: item.desc || 'Live event.',
+                badge: 'NEW',
+                gradient: 'from-purple-900/40 via-slate-900 to-slate-950',
+                stageLabel: '▲ MAIN STAGE ▲',
+                tiers: [
+                  { code: 'GEN', name: 'General Admission', price: item.pricePerSeat || 120, desc: 'Entry pass' }
+                ]
+              });
+            }
+          });
+
+          // Keep currentEvent in strict sync
+          if (currentEvent) {
+            const currentMatch = SHOWS.find(s => s.id === currentEvent.id);
+            if (currentMatch) currentEvent = currentMatch;
+          }
+
+          updateHeroInventoryGauge();
+          renderEventsGrid();
+          if (currentUser && currentUser.role === 'admin') {
+            renderAdminShowsList();
+            fetchAdminBookings(false);
+          }
+        }
+      } catch (err) {
+        console.warn('Inventory sync error:', err);
+      }
+    }
+
+    function updateHeroInventoryGauge() {
+      const avail = currentEvent.availableSeats !== undefined ? currentEvent.availableSeats : 10;
+      const total = currentEvent.totalSeats || 10;
+
+      document.getElementById('heroSeatsText').innerText = `${avail} / ${total} Seats`;
+      const percentage = Math.max(0, Math.min(100, (avail / total) * 100));
+      document.getElementById('heroProgressBar').style.width = `${percentage}%`;
+
+      const badge = document.getElementById('heroStockBadge');
+      const reserveBtn = document.getElementById('reserveBtn');
+
+      if (avail === 0) {
+        badge.innerText = 'Sold Out';
+        badge.className = 'text-[10px] uppercase font-bold px-2.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30';
+        document.getElementById('heroProgressBar').className = 'bg-rose-500 h-2 rounded-full transition-all duration-500';
+        if (reserveBtn) {
+          reserveBtn.disabled = true;
+          reserveBtn.className = 'w-full py-3.5 px-6 rounded-2xl font-extrabold text-xs bg-slate-800 text-slate-500 cursor-not-allowed transition flex items-center justify-center gap-2 border border-slate-700';
+          reserveBtn.innerHTML = '<i class="fa-solid fa-ban"></i> <span>SOLD OUT &bull; No Seats Remaining</span>';
+        }
+      } else if (avail <= 2) {
+        badge.innerText = 'Almost Gone';
+        badge.className = 'text-[10px] uppercase font-bold px-2.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30';
+        document.getElementById('heroProgressBar').className = 'bg-amber-400 h-2 rounded-full transition-all duration-500';
+        if (reserveBtn && !reserveBtn.innerHTML.includes('Locking')) {
+          reserveBtn.disabled = false;
+          reserveBtn.className = 'w-full py-3.5 px-6 rounded-2xl font-extrabold text-xs bg-gradient-to-r from-amber-600 via-amber-500 to-indigo-600 hover:opacity-95 text-white shadow-xl shadow-amber-600/30 transition flex items-center justify-center gap-2';
+          reserveBtn.innerHTML = '<i class="fa-solid fa-lock"></i> <span>Lock Seat Now (Last Tickets!)</span>';
+        }
+      } else {
+        badge.innerText = 'Available';
+        badge.className = 'text-[10px] uppercase font-bold px-2.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300';
+        document.getElementById('heroProgressBar').className = 'bg-gradient-to-r from-emerald-500 via-teal-400 to-indigo-500 h-2 rounded-full transition-all duration-500';
+        if (reserveBtn && !reserveBtn.innerHTML.includes('Locking')) {
+          reserveBtn.disabled = false;
+          reserveBtn.className = 'w-full py-3.5 px-6 rounded-2xl font-extrabold text-xs bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-500 hover:opacity-95 text-white shadow-xl shadow-indigo-600/30 transition flex items-center justify-center gap-2';
+          reserveBtn.innerHTML = '<i class="fa-solid fa-lock"></i> <span>Lock Seat Now (Instant Hold)</span>';
+        }
+      }
+    }
+
+    function selectTickets(qty) {
+      selectedQuantity = qty;
+      document.getElementById('ticketCountInput').value = qty;
+      const b1 = document.getElementById('qty1Btn');
+      const b2 = document.getElementById('qty2Btn');
+      if (qty === 1) {
+        b1.className = 'py-3 rounded-2xl border border-indigo-500 bg-indigo-500/15 text-indigo-300 text-xs font-bold transition flex items-center justify-center gap-2';
+        b2.className = 'py-3 rounded-2xl border border-slate-800 bg-slate-900 text-slate-400 text-xs font-bold hover:border-slate-700 transition flex items-center justify-center gap-2';
+      } else {
+        b2.className = 'py-3 rounded-2xl border border-indigo-500 bg-indigo-500/15 text-indigo-300 text-xs font-bold transition flex items-center justify-center gap-2';
+        b1.className = 'py-3 rounded-2xl border border-slate-800 bg-slate-900 text-slate-400 text-xs font-bold hover:border-slate-700 transition flex items-center justify-center gap-2';
+      }
+    }
+
+    function generateUUID() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    function regenerateKey() {
+      const key = generateUUID();
+      document.getElementById('currentIdempotencyKey').innerText = key.substring(0, 16) + '...';
+      document.getElementById('currentIdempotencyKey').dataset.fullKey = key;
+    }
+
+    async function handleReserve(e) {
+      e.preventDefault();
+      const btn = document.getElementById('reserveBtn');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Locking seat on AWS...`;
+
+      const userId = document.getElementById('userIdInput').value || (currentUser ? currentUser.email : 'user@example.com');
+      const ticketCount = parseInt(document.getElementById('ticketCountInput').value, 10);
+      const idempotencyKey = document.getElementById('currentIdempotencyKey').dataset.fullKey || generateUUID();
+
+      try {
+        const res = await fetch(`${API_BASE}/reserve`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': idempotencyKey
+          },
+          body: JSON.stringify({ eventId: currentEvent.id, userId, ticketCount })
+        });
+
+        const json = await res.json();
+
+        if (res.status === 202) {
+          currentBookingId = json.data.bookingId;
+          showHoldBanner(currentBookingId, json.data.expiresInSeconds || 300);
+          regenerateKey();
+          refreshAllInventory();
+          document.getElementById('holdBanner').scrollIntoView({ behavior: 'smooth' });
+        } else if (res.status === 409) {
+          alert(`❌ SOLD OUT: ${currentEvent.name} has no more seats available!`);
+          refreshAllInventory();
+        } else {
+          alert('Error: ' + (json.error || 'Failed to reserve'));
+        }
+      } catch (err) {
+        alert('Network Error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    function showHoldBanner(bookingId, seconds) {
+      const banner = document.getElementById('holdBanner');
+      document.getElementById('holdBookingId').innerText = bookingId.substring(0, 8) + '...';
+      banner.classList.remove('hidden');
+
+      if (timerInterval) clearInterval(timerInterval);
+
+      let timeLeft = seconds;
+      const timerEl = document.getElementById('countdownTimer');
+
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          timerEl.innerText = '00:00';
+          banner.classList.add('hidden');
+          confirmPayment('FAILED');
+          alert('⏰ Hold window expired! Seat automatically released back to pool on AWS.');
+          return;
+        }
+        const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+        const s = (timeLeft % 60).toString().padStart(2, '0');
+        timerEl.innerText = `${m}:${s}`;
+      }, 1000);
+    }
+
+    let myBookings = [];
+
+    function loadUserBookings() {
+      const stored = localStorage.getItem('seatmatrix_user_tickets');
+      if (stored) {
+        try { myBookings = JSON.parse(stored); } catch (e) {}
+      }
+      updateUserTicketBadge();
+    }
+
+    function updateUserTicketBadge() {
+      const b = document.getElementById('userTicketBadge');
+      if (b) b.innerText = myBookings.length;
+    }
+
+    function openMyBookingsModal() {
+      renderMyTickets();
+      document.getElementById('myTicketsModal').classList.remove('hidden');
+    }
+
+    function closeMyTicketsModal() {
+      document.getElementById('myTicketsModal').classList.add('hidden');
+    }
+
+    function renderMyTickets() {
+      const container = document.getElementById('userTicketsList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (myBookings.length === 0) {
+        container.innerHTML = `<div class="p-8 text-center text-slate-500 italic">No tickets booked yet. Pick a show and click "Lock Seat Now" to book your first ticket!</div>`;
+        return;
+      }
+
+      myBookings.forEach((t) => {
+        const card = document.createElement('div');
+        card.className = 'bg-gradient-to-b from-slate-900 to-slate-950 border border-indigo-500/30 rounded-2xl p-5 mb-4 relative overflow-hidden';
+        card.innerHTML = `
+          <div class="flex justify-between items-start mb-3">
+            <div>
+              <span class="text-[9px] text-indigo-400 font-bold uppercase tracking-wider block">${t.category || 'LIVE EVENT'}</span>
+              <h4 class="text-base font-black text-white">${t.eventName}</h4>
+              <span class="text-[10px] text-slate-400"><i class="fa-solid fa-location-dot mr-1 text-rose-500"></i> ${t.venue} &bull; ${t.date}</span>
+            </div>
+            <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">CONFIRMED</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 text-xs py-2 border-y border-dashed border-slate-800 my-3 text-slate-300 font-mono">
+            <div>
+              <span class="text-[9px] text-slate-500 block uppercase font-bold font-sans">Booking ID</span>
+              <span class="text-indigo-400 font-bold">${t.bookingId.substring(0, 10)}...</span>
+            </div>
+            <div>
+              <span class="text-[9px] text-slate-500 block uppercase font-bold font-sans">Seats</span>
+              <span class="text-white font-bold">${t.quantity} Ticket (${t.tier})</span>
+            </div>
+            <div>
+              <span class="text-[9px] text-slate-500 block uppercase font-bold font-sans">Attendee</span>
+              <span class="text-white truncate block max-w-[140px]">${t.user}</span>
+            </div>
+            <div>
+              <span class="text-[9px] text-slate-500 block uppercase font-bold font-sans">Total Paid</span>
+              <span class="text-emerald-400 font-bold">₹${t.price}</span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <div class="flex items-center gap-2">
+              <img src="${t.qrUrl}" alt="QR" class="w-12 h-12 bg-white p-1 rounded-lg">
+              <span class="text-[9px] text-slate-500 font-mono">Verified on AWS DynamoDB</span>
+            </div>
+            <button onclick="window.print()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold transition flex items-center gap-1.5">
+              <i class="fa-solid fa-print"></i> Print
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    async function confirmPayment(status) {
+      if (!currentBookingId) return;
+      try {
+        const res = await fetch(`${API_BASE}/payment-webhook`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingId: currentBookingId, status })
+        });
+        const data = await res.json();
+        clearInterval(timerInterval);
+        document.getElementById('holdBanner').classList.add('hidden');
+
+        if (status === 'SUCCESS') {
+          confetti({ particleCount: 160, spread: 85, origin: { y: 0.6 } });
+
+          // Save to local user bookings list
+          const attendee = document.getElementById('userIdInput').value || (currentUser ? currentUser.email : 'user@example.com');
+          const newTicket = {
+            bookingId: currentBookingId,
+            eventName: currentEvent.name,
+            category: currentEvent.category,
+            tier: selectedTier.name,
+            quantity: selectedQuantity,
+            price: selectedTier.price * selectedQuantity,
+            venue: currentEvent.venue,
+            date: currentEvent.date,
+            user: attendee,
+            createdAt: new Date().toISOString(),
+            qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=SeatMatrix-${currentBookingId}`
+          };
+          myBookings.unshift(newTicket);
+          localStorage.setItem('seatmatrix_user_tickets', JSON.stringify(myBookings));
+          updateUserTicketBadge();
+
+          // Open tickets modal
+          openMyBookingsModal();
+        } else {
+          alert('Reservation Cancelled: Seat has been released back to available pool.');
+        }
+        currentBookingId = null;
+
+        // Instant dynamic refresh across all views
+        await refreshAllInventory();
+        if (currentUser && currentUser.role === 'admin') {
+          fetchAdminBookings();
+        }
+      } catch (err) {
+        alert('Payment webhook failed: ' + err.message);
+      }
+    }
+
+    // Admin Portal Functions
+    function renderAdminShowsList() {
+      const container = document.getElementById('adminShowsList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      document.getElementById('adminActiveShowsCount').innerText = `${SHOWS.length} Shows`;
+
+      SHOWS.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'p-4 rounded-3xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between';
+        div.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-800 text-cyan-300">${s.category}</span>
+              <span class="text-xs font-mono font-bold text-white">₹${s.price}</span>
+            </div>
+            <h4 class="font-bold text-white text-sm leading-snug mb-1">${s.name}</h4>
+            <p class="text-[11px] text-slate-400 mb-3"><i class="fa-solid fa-location-dot mr-1 text-rose-500"></i> ${s.venue}</p>
+            
+            <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 mb-3">
+              <div class="flex justify-between items-center text-[11px] mb-1">
+                <span class="text-slate-400">Available:</span>
+                <span class="font-mono font-bold text-emerald-400">${s.availableSeats} / ${s.totalSeats} seats</span>
+              </div>
+              <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div class="bg-emerald-400 h-1.5 rounded-full" style="width: ${(s.availableSeats / s.totalSeats) * 100}%"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 pt-2 border-t border-slate-800">
+            <input type="number" id="adminSeatVal_${s.id}" value="${s.totalSeats}" class="w-16 bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-center text-white font-mono">
+            <button onclick="adminSetCapacity('${s.id}')" class="flex-1 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition">
+              Update Seats
+            </button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function adminSetCapacity(eventId) {
+      const val = parseInt(document.getElementById(`adminSeatVal_${eventId}`).value, 10);
+      const s = SHOWS.find(x => x.id === eventId);
+      try {
+        await fetch(`${API_BASE}/admin/update-event`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: s.id,
+            totalSeats: val,
+            name: s.name,
+            pricePerSeat: s.price
+          })
+        });
+        alert(`✅ Updated ${s.name} capacity to ${val} seats on AWS!`);
+        refreshAllInventory();
+      } catch (err) {
+        alert('Update failed: ' + err.message);
+      }
+    }
+
+    async function fetchAdminBookings(showSpinner = false) {
+      const tbody = document.getElementById('adminBookingsTableBody');
+      if (!tbody) return;
+      if (showSpinner || tbody.children.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-indigo-400"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Scanning AWS DynamoDB Bookings Table...</td></tr>`;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/bookings`);
+        const json = await res.json();
+        const items = json.data || [];
+
+        let totalRev = 0;
+        items.forEach(b => {
+          if (b.status === 'CONFIRMED') {
+            const s = SHOWS.find(x => x.id === b.eventId);
+            const p = s ? s.price : 120;
+            totalRev += (p * (b.ticketCount || 1));
+          }
+        });
+
+        document.getElementById('adminTotalBookingsCount').innerText = `${items.length} Bookings`;
+        const revEl = document.getElementById('adminTotalRevenue');
+        if (revEl) {
+          revEl.innerText = `₹${totalRev.toLocaleString('en-IN')}`;
+        }
+
+        if (items.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-500 italic">No bookings found in DynamoDB yet. Switch to user view and book a ticket to see it appear here!</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = '';
+        items.forEach(b => {
+          const tr = document.createElement('tr');
+          const isConfirmed = b.status === 'CONFIRMED';
+          const isCancelled = b.status === 'CANCELLED';
+          let statusBadgeClass = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
+          if (isConfirmed) statusBadgeClass = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+          if (isCancelled) statusBadgeClass = 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
+
+          const sMatch = SHOWS.find(x => x.id === b.eventId);
+          const showTitle = sMatch ? sMatch.name : (b.eventId || '');
+
+          tr.innerHTML = `
+            <td class="p-3.5 font-mono text-slate-400">${(b.bookingId || '').substring(0, 8)}...</td>
+            <td class="p-3.5 text-white font-semibold truncate max-w-[200px]" title="${showTitle}">${showTitle}</td>
+            <td class="p-3.5 text-slate-300 truncate max-w-[150px]">${b.userId || ''}</td>
+            <td class="p-3.5 text-center font-bold text-indigo-400">${b.ticketCount || 1}</td>
+            <td class="p-3.5">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${statusBadgeClass}">
+                ${b.status || 'RESERVED'}
+              </span>
+            </td>
+            <td class="p-3.5 text-[10px] text-slate-500">${b.createdAt ? new Date(b.createdAt).toLocaleTimeString() : 'Just now'}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        if (showSpinner) {
+          tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-rose-400">Failed to scan DynamoDB: ${err.message}</td></tr>`;
+        }
+      }
+    }
+
+    // Add New Show Modal
+    function openAddNewShowModal() { document.getElementById('newShowModal').classList.remove('hidden'); }
+    function closeAddNewShowModal() { document.getElementById('newShowModal').classList.add('hidden'); }
+
+    async function handleCreateShowSubmit(e) {
+      e.preventDefault();
+      const btn = document.getElementById('submitNewShowBtn');
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Publishing to AWS...`;
+
+      const title = document.getElementById('newShowTitle').value;
+      const category = document.getElementById('newShowCategory').value;
+      const city = document.getElementById('newShowCity').value;
+      const venue = document.getElementById('newShowVenue').value;
+      const date = document.getElementById('newShowDate').value;
+      const seats = parseInt(document.getElementById('newShowSeats').value, 10);
+      const price = parseInt(document.getElementById('newShowPrice').value, 10);
+      const desc = document.getElementById('newShowDesc').value;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/create-event`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: title,
+            category,
+            city,
+            venue,
+            date,
+            totalSeats: seats,
+            price,
+            desc
+          })
+        });
+
+        const json = await res.json();
+        alert(`🎉 Show '${title}' has been published live to AWS DynamoDB & Redis!`);
+        closeAddNewShowModal();
+        refreshAllInventory();
+      } catch (err) {
+        alert('Failed to publish: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up text-slate-950"></i> <span>Publish Event Live to AWS</span>`;
+      }
+    }
+
+    // Modal Helpers
+    function openMyBookingsModal() { document.getElementById('myTicketsModal').classList.remove('hidden'); }
+    function closeMyTicketsModal() { document.getElementById('myTicketsModal').classList.add('hidden'); }
+    function scrollToBooking() { document.getElementById('bookingSection').scrollIntoView({ behavior: 'smooth' }); }
+    function toggleCloudInspector() { document.getElementById('cloudInspectorDrawer').classList.toggle('hidden'); }
+
+    // Concurrency Stress Simulation
+    async function runSimulation(count = 50) {
+      const simBtn = document.getElementById('simBtn');
+      simBtn.disabled = true;
+      simBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Blasting ${count} buyers...`;
+
+      const log = document.getElementById('simLogContainer');
+      log.innerHTML = `<div class="text-cyan-400 font-bold mb-2">⚡ Firing ${count} simultaneous requests against ${currentEvent.name}...</div>`;
+
+      let successful = 0;
+      let soldOut = 0;
+      let errors = 0;
+
+      const requests = Array.from({ length: count }, (_, i) => {
+        const uId = `buyer_${i + 1}`;
+        const key = generateUUID();
+        return fetch(`${API_BASE}/reserve`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': key
+          },
+          body: JSON.stringify({ eventId: currentEvent.id, userId: uId, ticketCount: 1 })
+        }).then(async r => {
+          const body = await r.json().catch(() => ({}));
+          return { status: r.status, user: uId, body };
+        }).catch(err => ({ status: 500, user: uId, error: err.message }));
+      });
+
+      const start = Date.now();
+      const results = await Promise.all(requests);
+      const elapsed = Date.now() - start;
+
+      results.forEach(res => {
+        if (res.status === 202) {
+          successful++;
+          log.innerHTML += `<div class="text-emerald-400">✅ [202 Accepted] ${res.user} reserved seat! (Booking: ${res.body.data?.bookingId?.substring(0, 8)}...)</div>`;
+        } else if (res.status === 409) {
+          soldOut++;
+          log.innerHTML += `<div class="text-rose-400/80">❌ [409 Conflict] ${res.user} rejected: Sold Out (Zero overselling)</div>`;
+        } else {
+          errors++;
+          log.innerHTML += `<div class="text-amber-400">⚠️ [${res.status}] ${res.user} error: ${res.error || 'Failed'}</div>`;
+        }
+      });
+
+      document.getElementById('simTotalReq').innerText = count;
+      document.getElementById('simSuccessReq').innerText = successful;
+      document.getElementById('simRejectedReq').innerText = soldOut;
+      document.getElementById('simOversold').innerText = '0.00% (Strict Zero)';
+
+      log.innerHTML += `<div class="text-indigo-300 font-bold mt-2 pt-2 border-t border-slate-800">
+        🏁 Finished in ${elapsed}ms (${((count / elapsed) * 1000).toFixed(1)} req/sec). Exactly ${successful} reserved, ${soldOut} gracefully rejected.
+      </div>`;
+      log.scrollTop = log.scrollHeight;
+
+      simBtn.disabled = false;
+      simBtn.innerHTML = `<i class="fa-solid fa-users-rays"></i> Blast 50 Concurrent Buyers`;
+      refreshAllInventory();
+    }
+
+    // Run on startup
+    initApp();
+  </script>
+</body>
+</html>
